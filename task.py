@@ -28,3 +28,40 @@
 #
 #Delete these comments before commit!
 #Good luck.
+
+class Subject:
+    def __init__(self, subject_name: str, grades: dict[str, int]):
+        self.subject_name = subject_name
+        self.grades = grades
+    
+    def add_grade(self, test_name: str, grade: int):
+        self.grades[test_name] = grade
+    
+    def get_grade(self, test_name: str):
+        return self.grades.get(test_name)
+    
+    def list_tests(self):
+        return self.grades.keys()
+    
+    def get_avg_score(self):
+        avg_score = 0
+        for score in self.grades.items():
+            avg_score += score
+        avg_score /= len(self.grades)
+
+
+class Student:
+    def __init__(self, name: str, surname: str, classes: list[Subject]):
+        self.name = name
+        self.surname = surname
+        self.classes = classes
+
+    def get_avg_score_of_class(self, subject_arg: Subject):
+        for subject in self.classes:
+            if subject == subject_arg:
+                return subject.get_avg_score()
+            
+            
+if __name__ == "__main__":
+    stud1 = Student()
+        
