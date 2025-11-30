@@ -1,67 +1,150 @@
-# Class diary
-#
-# Create program for handling lesson scores.
-# Use python to handle student (highscool) class scores, and attendance.
-# Make it possible to:
-# - Get students total average score (average across classes)
-# - get students average score in class
-# - hold students name and surname
-# - Count total attendance of student
-#
-# Please, use your imagination and create more functionalities.
-# Your project should be able to handle entire school(s?).
-# If you have enough courage and time, try storing (reading/writing)
-# data in text files (YAML, JSON).
-# If you have even more courage, try implementing user interface (might be text-like).
-#
-#Try to expand your implementation as best as you can. 
-#Think of as many features as you can, and try implementing them.
-#Make intelligent use of pythons syntactic sugar (overloading, iterators, generators, etc)
-#Most of all: CREATE GOOD, RELIABLE, READABLE CODE.
-#The goal of this task is for you to SHOW YOUR BEST python programming skills.
-#Impress everyone with your skills, show off with your code.
-#
-#Your program must be runnable with command "python task.py".
-#Show some usecases of your library in the code (print some things)
-#
-#When you are done upload this code to your github repository. 
-#
-#Delete these comments before commit!
-#Good luck.
+import json
+import logging
+from typing import Any
 
-class Subject:
-    def __init__(self, subject_name: str, grades: dict[str, int]):
-        self.subject_name = subject_name
-        self.grades = grades
-    
-    def add_grade(self, test_name: str, grade: int):
-        self.grades[test_name] = grade
-    
-    def get_grade(self, test_name: str):
-        return self.grades.get(test_name)
-    
-    def list_tests(self):
-        return self.grades.keys()
-    
-    def get_avg_score(self):
-        avg_score = 0
-        for score in self.grades.items():
-            avg_score += score
-        avg_score /= len(self.grades)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
-class Student:
-    def __init__(self, name: str, surname: str, classes: list[Subject]):
-        self.name = name
-        self.surname = surname
-        self.classes = classes
+def load_data(path: str) -> dict[str, Any]:
+    try:
+        with open(path, "r") as f:
+            data: dict[str, Any] = json.load(f)
+        logger.info(f"loaded {path}")
+        return data
+    
+    except FileNotFoundError:
+        logger.warning("file not found, creating empty structure")
+        return {}
+    
+    except Exception as e:
+        logger.error(f"error loading {path}: {e}")
+        return {}
 
-    def get_avg_score_of_class(self, subject_arg: Subject):
-        for subject in self.classes:
-            if subject == subject_arg:
-                return subject.get_avg_score()
-            
-            
-if __name__ == "__main__":
-    stud1 = Student()
+
+def save_data(path: str, data: dict[str, Any]) -> None:
+    try:
+        with open(path, "w") as f:
+            json.dump(data, f, indent=4)
+        logger.info(f"saved {path}")
         
+    except Exception as e:
+        logger.error(f"error saving {path}: {e}")
+
+
+def add_student(schools: dict[str, Any], school: str, full: str) -> None:
+    s = schools[school]["students"]
+    
+    if full not in s:
+        s.append(full)
+        logger.info(f"{full} added to {school} students")
+    else:
+        logger.warning(f"{full} already in {school}")
+
+
+def add_course(schools: dict[str, Any], school: str, course: str) -> None:
+    c = schools[school]["courses"]
+    
+    if course not in c:
+        c[course] = {}
+        logger.info(f"{course} added for {school}")
+    else:
+        logger.warning(f"{course} exists in {school}")
+
+
+def add_grade(
+    schools: dict[str, Any],
+    school: str,
+    course: str,
+    full: str,
+    test: str,
+    grade: int,
+) -> None:
+    course_data = schools[school]["courses"][course]
+    
+    if full not in course_data:
+        course_data[full] = {}
+
+    course_data[full][test] = grade
+    logger.info(f"{school.upper()}:{full} got {grade} from {test} in {course}")
+
+
+def avg_student_in_course(schools: dict[str, Any], school: str, course: str, full: str) -> float:
+    course_data = schools[school]["courses"][course]
+    
+    if full not in course_data:
+        return 0.0
+    tests = list(course_data[full].values())
+    
+    return sum(tests) / len(tests) if tests else 0.0
+
+
+def avg_student_total(schools: dict[str, Any], school: str, full: str) -> float:
+    grades: list[int] = []
+    
+    for course in schools[school]["courses"].values():
+        if full in course:
+            for g in course[full].values():
+                grades.append(g)
+    
+    return sum(grades) / len(grades) if grades else 0.0
+
+
+def avg_course(schools: dict[str, Any], school: str, course: str) -> float:
+    course_data = schools[school]["courses"][course]
+    grades = [g for st in course_data.values() for g in st.values()]
+    
+    return sum(grades) / len(grades) if grades else 0.0
+
+
+def avg_school(schools: dict[str, Any], school: str) -> float:
+    grades: list[int] = []
+    
+    for course in schools[school]["courses"].values():
+        for st in course.values():
+            for g in st.values():
+                grades.append(g)
+                
+    return sum(grades) / len(grades) if grades else 0.0
+
+
+def demo() -> dict[str, Any]:
+    schools: dict[str, Any] = {"school 1": {"students": [], "courses": {}}, "school 2": {"students": [], "courses": {}}}
+    course_list = ["math", "physics", "programming", "history", "biology", "english"]
+    for s in schools:
+        for c in course_list:
+            add_course(schools, s, c)
+
+    for i in range(1, 21):
+        full = f"name{i} surname{i}"
+
+        if i % 2 == 0:
+            add_student(schools, "school 1", full)
+        if i % 2 == 1 or i % 3 == 0:
+            add_student(schools, "school 2", full)
+
+        for s in schools:
+            if full in schools[s]["students"]:
+                for c in course_list:
+                    for t in range(1, 4):
+                        g = (i * t + len(c)) % 6 + 1
+                        add_grade(schools, s, c, full, f"test{t}", g)
+
+    return schools
+
+
+if __name__ == "__main__":
+    path = "school_data.json"
+    data = load_data(path)
+    
+    if not data:
+        data = demo()
+        save_data(path, data)
+    
+    s = data
+    st = "name1 surname1"
+    
+    logger.info(avg_student_total(s, "school 2", st))
+    logger.info(avg_student_in_course(s, "school 2", "math", st))
+    logger.info(avg_course(s, "school 1", "math"))
+    logger.info(avg_school(s, "school 1"))
